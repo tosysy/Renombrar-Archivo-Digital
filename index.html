@@ -4,454 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Procesador de PDFs - Ancora Vigo</title>
+    <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #6b9ac4 0%, #87afd4 50%, #6b9ac4 100%);
-            min-height: 100vh;
-            padding: 20px;
-            transition: background 0.3s ease;
-        }
-        
-        body.dark-mode {
-            background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #1e293b 100%);
-        }
-        
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-            overflow: hidden;
-            transition: background 0.3s ease, color 0.3s ease;
-        }
-        
-        body.dark-mode .container {
-            background: #1e293b;
-            color: #e2e8f0;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #6b9ac4 0%, #87afd4 100%);
-            padding: 30px 40px;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            transition: background 0.3s ease;
-        }
-        
-        body.dark-mode .header {
-            background: linear-gradient(135deg, #0a0f1a 0%, #0f172a 100%);
-        }
-        
-        .theme-toggle {
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .theme-toggle:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.05);
-        }
-        
-        .logo-container {
-            display: flex;
-            align-items: flex-end;
-            gap: 20px;
-        }
-        
-        .logo-placeholder {
-            width: 300px;
-            height: 120px;
-            background: white;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            overflow: hidden;
-            transition: background 0.3s ease;
-        }
-        
-        body.dark-mode .logo-placeholder {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        }
-        
-        .logo-placeholder img.logo-light {
-            display: block;
-        }
-        
-        .logo-placeholder img.logo-dark {
-            display: none;
-        }
-        
-        body.dark-mode .logo-placeholder img.logo-light {
-            display: none;
-        }
-        
-        body.dark-mode .logo-placeholder img.logo-dark {
-            display: block;
-        }
-        
-        .logo-placeholder img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            padding: 5px;
-        }
-        
-        .header-text h1 {
-            font-size: 1.8em;
-            margin-bottom: 5px;
-        }
-        
-        .header-text p {
-            opacity: 0.9;
-            font-size: 0.9em;
-        }
-        
-        .content-area {
-            padding: 40px;
-            transition: background 0.3s ease;
-        }
-        
-        .subtitle {
-            text-align: center;
-            color: #6b9ac4;
-            margin-bottom: 30px;
-            font-size: 1.1em;
-            transition: color 0.3s ease;
-        }
-        
-        body.dark-mode .subtitle {
-            color: #94a3b8;
-        }
-        
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #e5e7eb;
-        }
-        
-        .tab {
-            padding: 12px 24px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            color: #6b7280;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
-            font-weight: 500;
-        }
-        
-        body.dark-mode .tab {
-            color: #94a3b8;
-        }
-        
-        .tab:hover {
-            color: #6b9ac4;
-            background: #f3f4f6;
-        }
-        
-        body.dark-mode .tab:hover {
-            color: #94a3b8;
-            background: #334155;
-        }
-        
-        .tab.active {
-            color: #6b9ac4;
-            border-bottom-color: #6b9ac4;
-            font-weight: bold;
-        }
-        
-        body.dark-mode .tab.active {
-            color: #94a3b8;
-            border-bottom-color: #94a3b8;
-        }
-        
-        .tab-content {
-            display: none;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
-        .upload-area {
-            border: 3px dashed #6b9ac4;
-            border-radius: 15px;
-            padding: 40px;
-            text-align: center;
-            background: #f0f7fc;
-            transition: all 0.3s;
-            cursor: pointer;
-            margin-bottom: 30px;
-        }
-        
-        body.dark-mode .upload-area {
-            border-color: #475569;
-            background: #1e293b;
-        }
-        
-        .upload-area:hover {
-            background: #e6f3fb;
-            border-color: #87afd4;
-        }
-        
-        body.dark-mode .upload-area:hover {
-            background: #334155;
-            border-color: #64748b;
-        }
-        
-        .upload-area.dragover {
-            background: #ddf0fa;
-            border-color: #87afd4;
-            transform: scale(1.02);
-        }
-        
-        body.dark-mode .upload-area.dragover {
-            background: #334155;
-            border-color: #64748b;
-        }
-        
-        .upload-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-        
-        input[type="file"] {
-            display: none;
-        }
-        
-        .btn {
-            background: linear-gradient(135deg, #6b9ac4 0%, #87afd4 100%);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s;
-            margin: 5px;
-            box-shadow: 0 4px 12px rgba(107, 154, 196, 0.3);
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(107, 154, 196, 0.4);
-        }
-        
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-        
-        .btn.processing {
-            background: #9ca3af;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-        
-        .btn.processing:hover {
-            background: #9ca3af;
-            transform: none;
-            box-shadow: 0 4px 12px rgba(107, 154, 196, 0.3);
-        }
-        
-        .btn.ready {
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% {
-                box-shadow: 0 4px 12px rgba(107, 154, 196, 0.3);
-            }
-            50% {
-                box-shadow: 0 6px 20px rgba(107, 154, 196, 0.6);
-            }
-        }
-        
-        .file-list {
-            margin-top: 20px;
-        }
-        
-        .file-item {
-            background: #f9fafb;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-left: 4px solid #6b9ac4;
-            transition: all 0.3s;
-        }
-        
-        body.dark-mode .file-item {
-            background: #334155;
-            border-left-color: #64748b;
-        }
-        
-        .file-info {
-            flex: 1;
-        }
-        
-        .file-name {
-            font-weight: bold;
-            color: #6b9ac4;
-            transition: color 0.3s;
-        }
-        
-        body.dark-mode .file-name {
-            color: #94a3b8;
-        }
-        
-        .file-status {
-            color: #6b7280;
-            font-size: 14px;
-            margin-top: 5px;
-            transition: color 0.3s;
-        }
-        
-        body.dark-mode .file-status {
-            color: #94a3b8;
-        }
-        
-        .status-processing {
-            color: #fb8500;
-        }
-        
-        .status-success {
-            color: #059669;
-        }
-        
-        .status-error {
-            color: #dc2626;
-        }
-        
-        .progress-bar {
-            width: 100%;
-            height: 6px;
-            background: #e5e7eb;
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 8px;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #6b9ac4 0%, #87afd4 100%);
-            width: 0%;
-            transition: width 0.3s;
-        }
-        
-        .results-area {
-            margin-top: 30px;
-        }
-        
-        .alert {
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            border-left: 4px solid;
-            transition: all 0.3s;
-        }
-        
-        .alert-info {
-            background: #dbeafe;
-            color: #5a8ab8;
-            border-color: #6b9ac4;
-        }
-        
-        body.dark-mode .alert-info {
-            background: #1e3a5f;
-            color: #94a3b8;
-            border-color: #475569;
-        }
-        
-        .alert-warning {
-            background: #fff7ed;
-            color: #92400e;
-            border-color: #fb8500;
-        }
-        
-        .download-btn {
-            background: linear-gradient(135deg, #87afd4 0%, #a3c4e0 100%);
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .download-btn:hover {
-            background: linear-gradient(135deg, #6b9ac4 0%, #87afd4 100%);
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #6b9ac4;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        .footer {
-            background: #f9fafb;
-            padding: 20px 40px;
-            text-align: center;
-            color: #6b7280;
-            font-size: 0.9em;
-            border-top: 1px solid #e5e7eb;
-            transition: all 0.3s;
-        }
-        
-        body.dark-mode .footer {
-            background: #0f172a;
-            color: #94a3b8;
-            border-top-color: #334155;
-        }
-        
-        .footer a {
-            color: #0a2463;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        
-        .footer a:hover {
-            color: #fb8500;
-        }
-    </style>
 </head>
 <body>
     <div class="container">
@@ -585,7 +141,6 @@
             const listElement = document.getElementById(`${type}-list`);
             const downloadBtn = document.getElementById(`download-all-${type}`);
             
-            // Activar el botón en modo procesando
             downloadBtn.style.display = 'inline-flex';
             downloadBtn.disabled = true;
             downloadBtn.className = 'btn download-btn processing';
@@ -710,7 +265,6 @@
                     processedFiles[type].push({ original: file, newName: file.name });
                 }
                 
-                // Decrementar contador y verificar si terminamos
                 processingCount[type]--;
                 if (processingCount[type] === 0) {
                     const downloadBtn = document.getElementById(`download-all-${type}`);
@@ -728,17 +282,6 @@
             }
         }
         
-        function downloadRenamedFile(file, newName) {
-            const url = URL.createObjectURL(file);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = newName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-        
         async function downloadAllFiles(type) {
             const files = processedFiles[type];
             if (files.length === 0) {
@@ -754,16 +297,13 @@
             try {
                 const zip = new JSZip();
                 
-                // Agregar cada archivo al ZIP
                 for (const fileData of files) {
                     const arrayBuffer = await fileData.original.arrayBuffer();
                     zip.file(fileData.newName, arrayBuffer);
                 }
                 
-                // Generar el ZIP
                 const zipBlob = await zip.generateAsync({ type: 'blob' });
                 
-                // Descargar el ZIP
                 const url = URL.createObjectURL(zipBlob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -796,7 +336,6 @@
         setupFileInput('albaranes');
         setupFileInput('pedidos');
         
-        // Función para cambiar el tema
         function toggleTheme() {
             const body = document.body;
             const themeIcon = document.getElementById('theme-icon');
@@ -815,7 +354,6 @@
             }
         }
         
-        // Cargar tema guardado
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
             document.body.classList.add('dark-mode');
