@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procesador de PDFs - Ancora Vigo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #6b9ac4 0%, #87afd4 50%, #6b9ac4 100%);
+            min-height: 100vh;
+            padding: 20px;
+            transition: background 0.3s ease;
+        }
+        
+        body.dark-mode {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #1e293b 100%);
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            overflow: hidden;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+        
+        body.dark-mode .container {
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #6b9ac4 0%, #87afd4 100%);
+            padding: 30px 40px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background 0.3s ease;
+        }
+        
+        body.dark-mode .header {
+            background: linear-gradient(135deg, #0a0f1a 0%, #0f172a 100%);
+        }
+        
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+        
+        .logo-container {
+            display: flex;
+            align-items: flex-end;
+            gap: 20px;
+        }
+        
+        .logo-placeholder {
+            width: 300px;
+            height: 120px;
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            overflow: hidden;
+            transition: background 0.3s ease;
+        }
+        
+        body.dark-mode .logo-placeholder {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        
+        .logo-placeholder img.logo-light {
+            display: block;
+        }
+        
+        .logo-placeholder img.logo-dark {
+            display: none;
+        }
+        
+        body.dark-mode .logo-placeholder img.logo-light {
+            display: none;
+        }
+        
+        body.dark-mode .logo-placeholder img.logo-dark {
+            display: block;
+        }
+        
+        .logo-placeholder img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 5px;
+        }
+        
+        .header-text h1 {
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+        
+        .header-text p {
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+        
+        .content-area {
+            padding: 40px;
+            transition: background 0.3s ease;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #6b9ac4;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+            transition: color 0.3s ease;
+        }
+        
+        body.dark-mode .subtitle {
+            color: #94a3b8;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #6b7280;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        body.dark-mode .tab {
+            color: #94a3b8;
+        }
+        
+        .tab:hover {
+            color: #6b9ac4;
+            background: #f3f4f6;
+        }
+        
+        body.dark-mode .tab:hover {
+            color: #94a3b8;
+            background: #334155;
+        }
+        
+        .tab.active {
+            color: #6b9ac4;
+            border-bottom-color: #6b9ac4;
+            font-weight: bold;
+        }
+        
+        body.dark-mode .tab.active {
+            color: #94a3b8;
+            border-bottom-color: #94a3b8;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .upload-area {
+            border: 3px dashed #6b9ac4;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            background: #f0f7fc;
+            transition: all 0.3s;
+            cursor: pointer;
+            margin-bottom: 30px;
+        }
+        
+        body.dark-mode .upload-area {
+            border-color: #475569;
+            background: #1e293b;
+        }
+        
+        .upload-area:hover {
+            background: #e6f3fb;
+            border-color: #87afd4;
+        }
+        
+        body.dark-mode .upload-area:hover {
+            background: #334155;
+            border-color: #64748b;
+        }
+        
+        .upload-area.dragover {
+            background: #ddf0fa;
+            border-color: #87afd4;
+            transform: scale(1.02);
+        }
+        
+        body.dark-mode .upload-area.dragover {
+            background: #334155;
+            border-color: #64748b;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #6b9ac4 0%, #87afd4 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+            margin: 5px;
+            box-shadow: 0 4px 12px rgba(107, 154, 196, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(107, 154, 196, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .btn.processing {
+            background: #9ca3af;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .btn.processing:hover {
+            background: #9ca3af;
+            transform: none;
+            box-shadow: 0 4px 12px rgba(107, 154, 196, 0.3);
+        }
+        
+        .btn.ready {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 4px 12px rgba(107, 154, 196, 0.3);
+            }
+            50% {
+                box-shadow: 0 6px 20px rgba(107, 154, 196, 0.6);
+            }
+        }
+        
+        .file-list {
+            margin-top: 20px;
+        }
+        
+        .file-item {
+            background: #f9fafb;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #6b9ac4;
+            transition: all 0.3s;
+        }
+        
+        body.dark-mode .file-item {
+            background: #334155;
+            border-left-color: #64748b;
+        }
+        
+        .file-info {
+            flex: 1;
+        }
+        
+        .file-name {
+            font-weight: bold;
+            color: #6b9ac4;
+            transition: color 0.3s;
+        }
+        
+        body.dark-mode .file-name {
+            color: #94a3b8;
+        }
+        
+        .file-status {
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 5px;
+            transition: color 0.3s;
+        }
+        
+        body.dark-mode .file-status {
+            color: #94a3b8;
+        }
+        
+        .status-processing {
+            color: #fb8500;
+        }
+        
+        .status-success {
+            color: #059669;
+        }
+        
+        .status-error {
+            color: #dc2626;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6b9ac4 0%, #87afd4 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .results-area {
+            margin-top: 30px;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid;
+            transition: all 0.3s;
+        }
+        
+        .alert-info {
+            background: #dbeafe;
+            color: #5a8ab8;
+            border-color: #6b9ac4;
+        }
+        
+        body.dark-mode .alert-info {
+            background: #1e3a5f;
+            color: #94a3b8;
+            border-color: #475569;
+        }
+        
+        .alert-warning {
+            background: #fff7ed;
+            color: #92400e;
+            border-color: #fb8500;
+        }
+        
+        .download-btn {
+            background: linear-gradient(135deg, #87afd4 0%, #a3c4e0 100%);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .download-btn:hover {
+            background: linear-gradient(135deg, #6b9ac4 0%, #87afd4 100%);
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #6b9ac4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .footer {
+            background: #f9fafb;
+            padding: 20px 40px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.9em;
+            border-top: 1px solid #e5e7eb;
+            transition: all 0.3s;
+        }
+        
+        body.dark-mode .footer {
+            background: #0f172a;
+            color: #94a3b8;
+            border-top-color: #334155;
+        }
+        
+        .footer a {
+            color: #0a2463;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .footer a:hover {
+            color: #fb8500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo-container">
+                <div class="logo-placeholder">
+                    <img src="logo.png" alt="Logo Ancora Vigo" class="logo-light">
+                    <img src="logo-dark.png" alt="Logo Ancora Vigo" class="logo-dark">
+                </div>
+                <div class="header-text">
+                    <p>Procesador de Documentos PDF</p>
+                </div>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <span id="theme-icon">☀️</span>
+                <span id="theme-text">Modo Diurno</span>
+            </button>
+        </div>
+        
+        <div class="content-area">
+            <p class="subtitle">Renombra automáticamente tus albaranes y pedidos</p>
+            
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('albaranes')">📋 Albaranes de Venta</button>
+                <button class="tab" onclick="switchTab('pedidos')">📦 Pedidos de Clientes</button>
+            </div>
+            
+            <div id="albaranes-content" class="tab-content active">
+                <div class="alert alert-info">
+                    <strong>📋 Albaranes de Venta:</strong> Busca números de 7 dígitos (formato: 1 013770) y renombra como "1-13770 ALBARAN.pdf"
+                </div>
+                
+                <div class="upload-area" id="albaranes-upload" onclick="document.getElementById('albaranes-file').click()">
+                    <div class="upload-icon">📁</div>
+                    <h3>Arrastra archivos PDF aquí</h3>
+                    <p style="margin-top: 10px; color: #6b7280;">o haz clic para seleccionar archivos PDF</p>
+                    <input type="file" id="albaranes-file" multiple accept=".pdf">
+                </div>
+                
+                <div id="albaranes-list" class="file-list"></div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <button id="download-all-albaranes" class="btn download-btn processing" disabled onclick="downloadAllFiles('albaranes')">⬇️ Procesando archivos...</button>
+                </div>
+            </div>
+            
+            <div id="pedidos-content" class="tab-content">
+                <div class="alert alert-info">
+                    <strong>📦 Pedidos de Clientes:</strong> Busca números de 7 dígitos y detecta palabras "RESTO/RESTOS/REST" para renombrar como "1-13770 PEDIDO ALMACENRESTO.pdf"
+                </div>
+                
+                <div class="upload-area" id="pedidos-upload" onclick="document.getElementById('pedidos-file').click()">
+                    <div class="upload-icon">📁</div>
+                    <h3>Arrastra archivos PDF aquí</h3>
+                    <p style="margin-top: 10px; color: #6b7280;">o haz clic para seleccionar archivos PDF</p>
+                    <input type="file" id="pedidos-file" multiple accept=".pdf">
+                </div>
+                
+                <div id="pedidos-list" class="file-list"></div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <button id="download-all-pedidos" class="btn download-btn processing" disabled onclick="downloadAllFiles('pedidos')">⬇️ Procesando archivos...</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>© 2024 Ancora Vigo - <a href="https://ancoravigo.com" target="_blank">ancoravigo.com</a></p>
+        </div>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        let processedFiles = {
+            albaranes: [],
+            pedidos: []
+        };
+        
+        let processingCount = {
+            albaranes: 0,
+            pedidos: 0
+        };
+        
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`${tab}-content`).classList.add('active');
+        }
+        
+        function setupDragAndDrop(type) {
+            const uploadArea = document.getElementById(`${type}-upload`);
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = Array.from(e.dataTransfer.files).filter(f => 
+                    f.name.toLowerCase().endsWith('.pdf')
+                );
+                if (files.length > 0) {
+                    handleFiles(files, type);
+                }
+            });
+        }
+        
+        function setupFileInput(type) {
+            const fileInput = document.getElementById(`${type}-file`);
+            fileInput.addEventListener('change', (e) => {
+                const files = Array.from(e.target.files).filter(f => 
+                    f.name.toLowerCase().endsWith('.pdf')
+                );
+                if (files.length > 0) {
+                    handleFiles(files, type);
+                } else {
+                    alert('Por favor, selecciona archivos PDF');
+                }
+                e.target.value = '';
+            });
+        }
+        
+        async function handleFiles(files, type) {
+            const listElement = document.getElementById(`${type}-list`);
+            const downloadBtn = document.getElementById(`download-all-${type}`);
+            
+            // Activar el botón en modo procesando
+            downloadBtn.style.display = 'inline-flex';
+            downloadBtn.disabled = true;
+            downloadBtn.className = 'btn download-btn processing';
+            downloadBtn.innerHTML = '⏳ Procesando archivos...';
+            
+            processingCount[type] = files.length;
+            
+            for (const file of files) {
+                const fileId = `${type}-${Date.now()}-${Math.random()}`;
+                const fileItem = createFileItem(file, fileId);
+                listElement.appendChild(fileItem);
+                
+                await processFile(file, type, fileId);
+            }
+        }
+        
+        function createFileItem(file, fileId) {
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.id = fileId;
+            div.innerHTML = `
+                <div class="file-info">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-status">Procesando... <span class="spinner"></span></div>
+                    <div class="progress-bar"><div class="progress-fill"></div></div>
+                </div>
+            `;
+            return div;
+        }
+        
+        async function extractTextFromPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const page = await pdf.getPage(1);
+            
+            const scale = 2.0;
+            const viewport = page.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            await page.render({ canvasContext: context, viewport }).promise;
+            
+            const imageData = canvas.toDataURL('image/png');
+            const result = await Tesseract.recognize(imageData, 'spa');
+            
+            return result.data.text;
+        }
+        
+        function findOrderNumberAlbaran(text) {
+            const match = text.match(/\b(\d{1})\s+(\d{6})\b/);
+            if (match) {
+                return match[1] + match[2];
+            }
+            return null;
+        }
+        
+        function findOrderNumberPedido(text) {
+            const match = text.match(/\b\d{7}\b/);
+            return match ? match[0] : null;
+        }
+        
+        function hasRestoKeyword(text) {
+            return /\b(RESTOS|RESTO|REST)\b/i.test(text);
+        }
+        
+        function formatOrderNumber(orderNumber) {
+            if (orderNumber.length === 7) {
+                const match = orderNumber.substring(1).match(/[1-9]/);
+                if (match) {
+                    const firstNonZeroPosition = match.index + 1;
+                    const formatted = `${orderNumber[0]}-${orderNumber.substring(firstNonZeroPosition).replace(/^0+/, '')}`;
+                    return formatted;
+                }
+            }
+            return orderNumber;
+        }
+        
+        async function processFile(file, type, fileId) {
+            const fileItem = document.getElementById(fileId);
+            const statusElement = fileItem.querySelector('.file-status');
+            const progressFill = fileItem.querySelector('.progress-fill');
+            
+            try {
+                progressFill.style.width = '30%';
+                statusElement.innerHTML = 'Extrayendo texto... <span class="spinner"></span>';
+                
+                const text = await extractTextFromPDF(file);
+                
+                progressFill.style.width = '60%';
+                statusElement.innerHTML = 'Analizando contenido... <span class="spinner"></span>';
+                
+                let orderNumber, newFileName;
+                
+                if (type === 'albaranes') {
+                    orderNumber = findOrderNumberAlbaran(text);
+                    if (orderNumber) {
+                        const formatted = formatOrderNumber(orderNumber);
+                        newFileName = `${formatted} ALBARAN.pdf`;
+                    }
+                } else {
+                    orderNumber = findOrderNumberPedido(text);
+                    if (orderNumber) {
+                        const formatted = formatOrderNumber(orderNumber);
+                        const hasResto = hasRestoKeyword(text);
+                        newFileName = `${formatted} PEDIDO ALMACEN${hasResto ? 'RESTO' : ''}.pdf`;
+                    }
+                }
+                
+                progressFill.style.width = '100%';
+                
+                if (orderNumber && newFileName) {
+                    statusElement.className = 'file-status status-success';
+                    statusElement.innerHTML = `✅ Listo: ${newFileName}`;
+                    
+                    processedFiles[type].push({ original: file, newName: newFileName });
+                } else {
+                    statusElement.className = 'file-status status-error';
+                    statusElement.innerHTML = '❌ No se encontró número de pedido - se descargará con nombre original';
+                    
+                    processedFiles[type].push({ original: file, newName: file.name });
+                }
+                
+                // Decrementar contador y verificar si terminamos
+                processingCount[type]--;
+                if (processingCount[type] === 0) {
+                    const downloadBtn = document.getElementById(`download-all-${type}`);
+                    downloadBtn.disabled = false;
+                    downloadBtn.className = 'btn download-btn ready';
+                    downloadBtn.innerHTML = '⬇️ Descargar Todos los Archivos (ZIP)';
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                statusElement.className = 'file-status status-error';
+                statusElement.innerHTML = `❌ Error: ${error.message}`;
+                progressFill.style.width = '100%';
+                progressFill.style.background = '#dc2626';
+            }
+        }
+        
+        function downloadRenamedFile(file, newName) {
+            const url = URL.createObjectURL(file);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = newName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        async function downloadAllFiles(type) {
+            const files = processedFiles[type];
+            if (files.length === 0) {
+                alert('No hay archivos para descargar');
+                return;
+            }
+            
+            const button = document.getElementById(`download-all-${type}`);
+            button.disabled = true;
+            button.className = 'btn download-btn processing';
+            button.innerHTML = '📦 Creando ZIP... <span class="spinner"></span>';
+            
+            try {
+                const zip = new JSZip();
+                
+                // Agregar cada archivo al ZIP
+                for (const fileData of files) {
+                    const arrayBuffer = await fileData.original.arrayBuffer();
+                    zip.file(fileData.newName, arrayBuffer);
+                }
+                
+                // Generar el ZIP
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                
+                // Descargar el ZIP
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                const zipName = type === 'albaranes' ? 'Albaranes.zip' : 'Pedidos.zip';
+                a.download = zipName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                button.className = 'btn download-btn';
+                button.innerHTML = '✅ ZIP Descargado';
+                setTimeout(() => {
+                    button.disabled = false;
+                    button.className = 'btn download-btn ready';
+                    button.innerHTML = '⬇️ Descargar Todos los Archivos (ZIP)';
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error al crear ZIP:', error);
+                alert('Error al crear el archivo ZIP');
+                button.disabled = false;
+                button.className = 'btn download-btn ready';
+                button.innerHTML = '⬇️ Descargar Todos los Archivos (ZIP)';
+            }
+        }
+        
+        setupDragAndDrop('albaranes');
+        setupDragAndDrop('pedidos');
+        setupFileInput('albaranes');
+        setupFileInput('pedidos');
+        
+        // Función para cambiar el tema
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.getElementById('theme-icon');
+            const themeText = document.getElementById('theme-text');
+            
+            body.classList.toggle('dark-mode');
+            
+            if (body.classList.contains('dark-mode')) {
+                themeIcon.textContent = '🌙';
+                themeText.textContent = 'Modo Nocturno';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                themeIcon.textContent = '☀️';
+                themeText.textContent = 'Modo Diurno';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+        
+        // Cargar tema guardado
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('theme-icon').textContent = '🌙';
+            document.getElementById('theme-text').textContent = 'Modo Nocturno';
+        }
+    </script>
+</body>
+</html>
